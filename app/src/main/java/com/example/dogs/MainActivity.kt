@@ -1,10 +1,12 @@
 package com.example.dogs
 
+import android.R
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.android.volley.Request
 import com.android.volley.RequestQueue
@@ -12,15 +14,17 @@ import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.denzcoskun.imageslider.models.SlideModel
 import com.example.dogs.databinding.ActivityMainBinding
+import `in`.galaxyofandroid.spinerdialog.OnSpinerItemClick
+import `in`.galaxyofandroid.spinerdialog.SpinnerDialog
 import org.json.JSONArray
 import org.json.JSONObject
 
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
-    private lateinit var breeds: Array<String?>
-    private lateinit var breeds_sub: Array<String?>
+    private lateinit var breeds: ArrayList<String>
     private lateinit var queue: RequestQueue
+    private lateinit var spinnerDialog: SpinnerDialog
     private val api: String = "https://dog.ceo/api"
     private var slideModels = ArrayList<SlideModel>()
 
@@ -49,48 +53,41 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun parseAllCategoryData(response: String) {
-        val mainObject = JSONObject(response)
-        val names = mainObject.getJSONObject("message").names() as JSONArray
+        val mainObject = JSONObject(response).getJSONObject("message")
+        val names = mainObject.names() as JSONArray
 
-        breeds = arrayOfNulls(names.length())
-        for (i in 0 until names.length())
-            breeds[i] = names[i].toString();
+        breeds = ArrayList<String>()
+        for (i in 0 until names.length()) {
+            val tmp = mainObject.getJSONArray(names[i].toString())
 
-        val autoAdapter = getAdapter(breeds)
-
-        binding.spinnerBreeds.adapter = autoAdapter
-        binding.spinnerBreeds.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-            override fun onItemSelected(
-                parent: AdapterView<*>?,
-                view: View?,
-                position: Int,
-                id: Long
-            ) {
-                getCategoryList(parent?.getItemAtPosition(position) as String)
+            if (tmp.length() > 0) {
+                for (j in 0 until tmp.length()) {
+                    breeds.add("${names[i]}/${tmp[j]}")
+                }
+            } else {
+                breeds.add("${names[i]}")
             }
         }
+
+        spinnerDialog = SpinnerDialog(
+            this@MainActivity,
+            breeds,
+            "Select or Search breeds",
+            "Close"
+        ) // With No Animation
+        spinnerDialog.setCancellable(true) // for cancellable
+        spinnerDialog.setShowKeyboard(false) // for open keyboard by default
+        spinnerDialog.bindOnSpinerListener(OnSpinerItemClick { item, _ ->
+            getCategoryImages(item)
+            binding.selectedBreed.text = "You are currently viewing\n\"$item\""
+        })
+        binding.button.setOnClickListener { spinnerDialog.showSpinerDialog() }
     }
 
-    private fun getCategoryList(breed: String) {
+    private fun getCategoryImages(breed: String) {
         val request = StringRequest(
             Request.Method.GET,
-            "$api/breed/$breed/list",
-            { response ->
-                categoryController(response, breed)
-            },
-            { error ->
-                Log.d("ErrorListCategory", "error $error")
-            }
-        )
-        queue.add(request);
-    }
-
-    private fun getCategoryImages(breed: String, subBreed: String = "") {
-        val query: String = if (subBreed.isEmpty()) { breed } else { "$breed/$subBreed" }
-        val request = StringRequest(
-            Request.Method.GET,
-            "$api/breed/$query/images",
+            "$api/breed/$breed/images",
             { response ->
                 setImagesJSON(response)
             },
@@ -101,49 +98,11 @@ class MainActivity : AppCompatActivity() {
         queue.add(request);
     }
 
-    private fun categoryController(response: String, breed: String) {
-
-        val mainSub = JSONObject(response).getJSONObject("message").getJSONArray(breed)
-        if (mainSub.length() == 0) {
-            getCategoryImages(breed)
-            binding.spinnerBreeds2.visibility = View.INVISIBLE
-        } else {
-            breeds_sub = emptyArray<String?>()
-            breeds_sub = arrayOfNulls(mainSub.length())
-            for (i in 0 until mainSub.length()) {
-                breeds_sub[i] = mainSub[i].toString()
-            }
-            val autoAdapter = getAdapter(breeds_sub)
-
-            binding.spinnerBreeds2.adapter = autoAdapter
-            binding.spinnerBreeds2.onItemSelectedListener =
-                object : AdapterView.OnItemSelectedListener {
-                    override fun onNothingSelected(parent: AdapterView<*>?) {}
-                    override fun onItemSelected(
-                        parent: AdapterView<*>?,
-                        view: View?,
-                        position: Int,
-                        id: Long
-                    ) {
-                        getCategoryImages(binding.spinnerBreeds.selectedItem.toString(), parent?.getItemAtPosition(position) as String)
-                    }
-                }
-            binding.spinnerBreeds2.visibility = View.VISIBLE
-        }
-    }
-
     private fun setImagesJSON(response: String) {
         val images = JSONObject(response).getJSONArray("message")
         slideModels.clear()
         for (i in 0 until images.length())
             slideModels.add(SlideModel("${images[i]}"))
         binding.slidebar.setImageList(slideModels)
-    }
-
-    private fun getAdapter(array: Array<String?>): ArrayAdapter<String> {
-        val autoAdapter: ArrayAdapter<String> =
-            ArrayAdapter(binding.root.context, android.R.layout.simple_spinner_item, array)
-        autoAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        return autoAdapter
     }
 }

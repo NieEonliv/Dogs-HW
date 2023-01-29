@@ -36,6 +36,7 @@ android {
 }
 
 dependencies {
+    implementation 'com.github.MdFarhanRaja:SearchableSpinner:2.0'
     implementation 'com.github.denzcoskun:ImageSlideshow:0.1.0'
     implementation 'androidx.core:core-ktx:1.7.0'
     implementation 'androidx.appcompat:appcompat:1.6.0'

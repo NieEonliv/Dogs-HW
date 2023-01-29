@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Dogs</string>
+    <string name="choose_a_category_of_cute_dogs">Choose a category of cute dogs</string>
+    <string name="choice">Choice</string>
 </resources>
